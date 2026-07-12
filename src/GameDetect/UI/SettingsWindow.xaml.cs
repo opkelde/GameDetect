@@ -95,31 +95,33 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
     private void LoadCustomGames()
     {
-        if (!File.Exists(CustomGamesPath)) return;
-        try
+        if (File.Exists(CustomGamesPath))
         {
-            var json = File.ReadAllText(CustomGamesPath);
-            var root = JsonDocument.Parse(json).RootElement;
-            if (root.TryGetProperty("games", out var gamesElement))
+            try
             {
-                var games = JsonSerializer.Deserialize<CustomGameEntry[]>(gamesElement.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (games != null)
+                var json = File.ReadAllText(CustomGamesPath);
+                var root = JsonDocument.Parse(json).RootElement;
+                if (root.TryGetProperty("games", out var gamesElement))
                 {
-                    foreach (var game in games)
+                    var games = JsonSerializer.Deserialize<CustomGameEntry[]>(gamesElement.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    if (games != null)
                     {
-                        CustomGames.Add(new CustomGameUIEntry
+                        foreach (var game in games)
                         {
-                            Name = game.Name,
-                            AppId = game.AppId ?? "",
-                            Launcher = game.Launcher ?? "Custom",
-                            ExecutablesString = game.Executables != null ? string.Join(", ", game.Executables) : "",
-                            MatchWindowTitle = game.MatchWindowTitle ?? ""
-                        });
+                            CustomGames.Add(new CustomGameUIEntry
+                            {
+                                Name = game.Name,
+                                AppId = game.AppId ?? "",
+                                Launcher = game.Launcher ?? "Custom",
+                                ExecutablesString = game.Executables != null ? string.Join(", ", game.Executables) : "",
+                                MatchWindowTitle = game.MatchWindowTitle ?? ""
+                            });
+                        }
                     }
                 }
             }
+            catch { }
         }
-        catch { }
 
         DgCustomGames.ItemsSource = CustomGames;
     }

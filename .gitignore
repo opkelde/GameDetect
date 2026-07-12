@@ -70,3 +70,7 @@ scratch/
 # Build and Installer Output
 publish/
 Output/
+
+# Agent configuration rules (contains local paths, secrets, etc.)
+.agents/
+
