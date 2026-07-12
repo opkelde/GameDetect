@@ -245,8 +245,8 @@ public class LauncherScanner : ILauncherScanner
         {
             var detectedExes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // 1. Scan the game directory recursively (depth up to 3)
-            ScanDirectoriesForExecutables(path, 0, 3, detectedExes);
+            // 1. Scan the game directory recursively (depth up to 4)
+            ScanDirectoriesForExecutables(path, 0, 4, detectedExes);
 
             // 2. Load mappings and check if this game has any additional mapped executables
             KnownGameMapping? matchedMapping = null;

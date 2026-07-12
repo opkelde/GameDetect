@@ -110,6 +110,7 @@
     { "name": "NieR Replicant ver.1.22474487139...", "app_id": "1113560", "launcher": "Steam", "executables": ["Nier Replicant.exe"] },
     { "name": "Kingdom Hearts HD 1.5+2.5 ReMIX", "app_id": "2550880", "launcher": "Steam", "executables": ["KINGDOM HEARTS FINAL MIX.exe", "KINGDOM HEARTS ReChain of Memories.exe", "KINGDOM HEARTS II FINAL MIX.exe", "KINGDOM HEARTS Birth by Sleep FINAL MIX.exe"] },
     { "name": "Kingdom Hearts HD 2.8 Final Chapter Prologue", "app_id": "2550890", "launcher": "Steam", "executables": ["KINGDOM HEARTS Dream Drop Distance.exe", "KINGDOM HEARTS 0.2 Birth by Sleep.exe"] },
-    { "name": "Kingdom Hearts III + Re Mind", "app_id": "2550900", "launcher": "Steam", "executables": ["KINGDOM HEARTS III.exe"] }
+    { "name": "Kingdom Hearts III + Re Mind", "app_id": "2550900", "launcher": "Steam", "executables": ["KINGDOM HEARTS III.exe"] },
+    { "name": "Delta Force", "app_id": "2507950", "launcher": "Steam", "executables": ["DeltaForceClient-Win64-Shipping.exe", "df_launcher.exe"] }
   ]
 }

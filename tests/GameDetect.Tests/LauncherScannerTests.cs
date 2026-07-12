@@ -80,35 +80,40 @@ public class LauncherScannerTests : IDisposable
         // Sub1 (bin): game2.exe
         // Sub2 (content): game3.exe (ignored directory)
         // Sub3 (bin/win64): game4.exe (depth 2)
-        // Sub4 (bin/win64/shipping/deep): game5.exe (depth 4 - out of range)
+        // Sub4 (bin/win64/shipping/deep): game5.exe (depth 4)
+        // Sub5 (bin/win64/shipping/deep/deeper): game6.exe (depth 5 - out of range)
         
         var binDir = Path.Combine(_tempDir, "bin");
         var contentDir = Path.Combine(_tempDir, "content");
         var win64Dir = Path.Combine(binDir, "win64");
         var deepDir = Path.Combine(win64Dir, "shipping", "deep");
-
+        var deeperDir = Path.Combine(deepDir, "deeper");
+ 
         Directory.CreateDirectory(binDir);
         Directory.CreateDirectory(contentDir);
         Directory.CreateDirectory(win64Dir);
         Directory.CreateDirectory(deepDir);
-
+        Directory.CreateDirectory(deeperDir);
+ 
         File.WriteAllText(Path.Combine(_tempDir, "game1.exe"), "");
         File.WriteAllText(Path.Combine(binDir, "game2.exe"), "");
         File.WriteAllText(Path.Combine(contentDir, "game3.exe"), "");
         File.WriteAllText(Path.Combine(win64Dir, "game4.exe"), "");
         File.WriteAllText(Path.Combine(deepDir, "game5.exe"), "");
-
+        File.WriteAllText(Path.Combine(deeperDir, "game6.exe"), "");
+ 
         var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
+ 
         // Act
-        scanMethod!.Invoke(scanner, new object[] { _tempDir, 0, 3, result });
-
+        scanMethod!.Invoke(scanner, new object[] { _tempDir, 0, 4, result });
+ 
         // Assert
         result.Should().Contain("game1.exe");
         result.Should().Contain("game2.exe");
         result.Should().NotContain("game3.exe"); // content folder is ignored
         result.Should().Contain("game4.exe");
-        result.Should().NotContain("game5.exe"); // beyond depth 3
+        result.Should().Contain("game5.exe"); // within depth 4
+        result.Should().NotContain("game6.exe"); // beyond depth 4
     }
 
     [Fact]

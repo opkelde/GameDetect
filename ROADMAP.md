@@ -3,7 +3,7 @@
 This document outlines the planned improvements, architectural updates, and feature milestones for GameDetect.
 
 > [!NOTE]
-> Functional code prototypes for many of these features are prepared inside the untracked folder `ROADMAP-TEMP/` for rapid future development.
+> Functional code prototypes for all planned features (including MQTT connection tests, library filtering, profile backup, tray pause actions, autostart configuration, custom launcher scans, idle polling throttling, manual file/folder browses, GitHub-based update checks, GitHub CI/CD pipelines, Discord Rich Presence updates, HTTP webhooks, play time metrics tracking, and corresponding unit test specifications) are prepared inside the untracked folder `ROADMAP-TEMP/` for rapid future development.
 
 ---
 
@@ -42,3 +42,12 @@ Implements testing pipelines and automated software updates.
 - [ ] **GitHub Actions Integration**: Set up build and test automation on commit pushes.
 - [ ] **Auto-Update Notifications**: Alert the user within the Settings Window when a new GitHub release is available.
 - [ ] **Universal Linux Support (Proton/WINE)**: Explore head-less runner support for Steam Deck (SteamOS) and Linux systems.
+
+---
+
+### 🔹 Phase 5: Extended Platforms & Integrations (v2.1.0)
+Introduces third-party integrations and local automation capabilities.
+
+- [ ] **Discord Rich Presence (DRP)**: Automatically update Discord status with the currently tracked game.
+- [ ] **Webhooks**: Trigger HTTP POST payloads to custom endpoints (e.g. smart hubs) on game state changes.
+- [ ] **Play Time Statistics**: Monitor and display session duration and total play time statistics.
