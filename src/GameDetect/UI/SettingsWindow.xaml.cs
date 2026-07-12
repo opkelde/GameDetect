@@ -9,6 +9,8 @@ using Wpf.Ui.Appearance;
 using System.Collections.ObjectModel;
 using GameDetect.Detection.Models;
 
+using System.Linq;
+
 namespace GameDetect.UI;
 
 public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
@@ -16,8 +18,12 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     private static readonly string AppDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameDetect");
     private static readonly string AppSettingsPath = Path.Combine(AppDataDir, "config.json");
     private static readonly string CustomGamesPath = Path.Combine(AppDataDir, "custom_games.json");
+    private static readonly string MappingsPath = Path.Combine(AppDataDir, "known_game_mappings.json");
+    private static readonly string IgnoredPath = Path.Combine(AppDataDir, "ignored_executables.json");
 
     public ObservableCollection<CustomGameEntry> CustomGames { get; set; } = new();
+    public ObservableCollection<GameMappingEntry> GameMappings { get; set; } = new();
+    public ObservableCollection<IgnoredExecutableEntry> IgnoredExecutables { get; set; } = new();
 
     public SettingsWindow()
     {
@@ -27,6 +33,8 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
         LoadSettings();
         LoadCustomGames();
+        LoadMappings();
+        LoadIgnoredExecutables();
         
         ChkAutostart.IsChecked = AutostartManager.IsAutostartEnabled();
     }
@@ -163,6 +171,10 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
                 LoadSettings();
                 CustomGames.Clear();
                 LoadCustomGames();
+                GameMappings.Clear();
+                LoadMappings();
+                IgnoredExecutables.Clear();
+                LoadIgnoredExecutables();
                 MessageBox.Show("Configuration restored successfully! Please restart the service.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex) { MessageBox.Show($"Restore failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error); }
@@ -180,5 +192,166 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         ApplicationThemeManager.Apply(ApplicationTheme.Dark, Wpf.Ui.Controls.WindowBackdropType.Acrylic);
         ApplicationThemeManager.Apply(this);
     }
+
+    private void LoadMappings()
+    {
+        if (!File.Exists(MappingsPath))
+        {
+            var defaultDb = new KnownGameMappingsDatabase
+            {
+                Games = new List<KnownGameMapping>
+                {
+                    new KnownGameMapping { Name = "Clair Obscura: Expedition 33", AppId = "1807890", Launcher = "Steam", Executables = new() { "SandFall-Win64-Shipping.exe" } },
+                    new KnownGameMapping { Name = "RoboCop: Rogue City", AppId = "1680720", Launcher = "Steam", Executables = new() { "RoboCop-Win64-Shipping.exe" } },
+                    new KnownGameMapping { Name = "Warhammer 40k: Space Marine 2", AppId = "1675200", Launcher = "Steam", Executables = new() { "Warhammer 40000 Space Marine 2 - Retail.exe" } },
+                    new KnownGameMapping { Name = "Slay the Spire 2", AppId = "249940", Launcher = "Steam", Executables = new() { "SlayTheSpire2.exe" } }
+                }
+            };
+            var json = JsonSerializer.Serialize(defaultDb, new JsonSerializerOptions { WriteIndented = true });
+            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+            File.WriteAllText(MappingsPath, json);
+        }
+
+        try
+        {
+            var json = File.ReadAllText(MappingsPath);
+            var root = JsonDocument.Parse(json).RootElement;
+            if (root.TryGetProperty("games", out var gamesElement))
+            {
+                var games = JsonSerializer.Deserialize<KnownGameMapping[]>(gamesElement.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (games != null)
+                {
+                    foreach (var game in games)
+                    {
+                        GameMappings.Add(new GameMappingEntry
+                        {
+                            Name = game.Name,
+                            AppId = game.AppId ?? "",
+                            Launcher = game.Launcher ?? "Steam",
+                            ExecutablesString = string.Join(", ", game.Executables)
+                        });
+                    }
+                }
+            }
+        }
+        catch { }
+
+        DgGameMappings.ItemsSource = GameMappings;
+    }
+
+    private void LoadIgnoredExecutables()
+    {
+        if (!File.Exists(IgnoredPath))
+        {
+            var defaultDb = new IgnoredExecutablesDatabase
+            {
+                IgnoredExecutables = new List<string>
+                {
+                    "CrashReportClient.exe", "UnrealCEFSubProcess.exe", "UnityCrashHandler32.exe", "UnityCrashHandler64.exe",
+                    "crashpad_handler.exe", "epic_online_services.exe", "EpicOnlineServices.exe", "EOSBindCheck.exe",
+                    "GameOverlayUI.exe", "steamwebhelper.exe", "unins000.exe", "unins001.exe", "uninstall.exe",
+                    "Touchup.exe", "Cleanup.exe", "GDFInstall.exe", "dxwebsetup.exe", "vc_redist.x64.exe",
+                    "vc_redist.x86.exe", "physx.exe"
+                }
+            };
+            var json = JsonSerializer.Serialize(defaultDb, new JsonSerializerOptions { WriteIndented = true });
+            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+            File.WriteAllText(IgnoredPath, json);
+        }
+
+        try
+        {
+            var json = File.ReadAllText(IgnoredPath);
+            var root = JsonDocument.Parse(json).RootElement;
+            if (root.TryGetProperty("ignored_executables", out var ignoredElement))
+            {
+                var ignored = JsonSerializer.Deserialize<string[]>(ignoredElement.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (ignored != null)
+                {
+                    foreach (var exe in ignored)
+                    {
+                        IgnoredExecutables.Add(new IgnoredExecutableEntry { Executable = exe });
+                    }
+                }
+            }
+        }
+        catch { }
+
+        DgIgnoredList.ItemsSource = IgnoredExecutables;
+    }
+
+    private void BtnSaveMappings_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+
+            var gamesList = new List<KnownGameMapping>();
+            foreach (var entry in GameMappings)
+            {
+                if (string.IsNullOrWhiteSpace(entry.Name)) continue;
+
+                var exes = entry.ExecutablesString
+                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .Where(s => !string.IsNullOrEmpty(s))
+                    .ToList();
+
+                gamesList.Add(new KnownGameMapping
+                {
+                    Name = entry.Name,
+                    AppId = string.IsNullOrWhiteSpace(entry.AppId) ? null : entry.AppId.Trim(),
+                    Launcher = string.IsNullOrWhiteSpace(entry.Launcher) ? null : entry.Launcher.Trim(),
+                    Executables = exes
+                });
+            }
+
+            var db = new KnownGameMappingsDatabase { Games = gamesList };
+            var json = JsonSerializer.Serialize(db, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(MappingsPath, json);
+
+            MessageBox.Show("Game mappings saved successfully! They will take effect on next scan.", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to save game mappings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void BtnSaveIgnored_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+
+            var ignoredList = IgnoredExecutables
+                .Where(entry => !string.IsNullOrEmpty(entry.Executable))
+                .Select(entry => entry.Executable!.Trim())
+                .ToList();
+
+            var db = new IgnoredExecutablesDatabase { IgnoredExecutables = ignoredList };
+            var json = JsonSerializer.Serialize(db, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(IgnoredPath, json);
+
+            MessageBox.Show("Ignored executables list saved successfully! It will take effect on next scan.", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to save ignored list: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+}
+
+public class GameMappingEntry
+{
+    public string Name { get; set; } = string.Empty;
+    public string AppId { get; set; } = string.Empty;
+    public string Launcher { get; set; } = "Steam";
+    public string ExecutablesString { get; set; } = string.Empty;
+}
+
+public class IgnoredExecutableEntry
+{
+    public string Executable { get; set; } = string.Empty;
 }
 

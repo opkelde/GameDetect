@@ -8,7 +8,9 @@ public static class BackupManager
     private static readonly string AppDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GameDetect");
     private static readonly string[] FilesToBackup = {
         "config.json",
-        "custom_games.json"
+        "custom_games.json",
+        "known_game_mappings.json",
+        "ignored_executables.json"
     };
 
     public static void BackupConfiguration(string zipPath)

@@ -66,6 +66,51 @@
                 </Grid>
             </TabItem>
 
+            <!-- Game Mappings Tab -->
+            <TabItem Header="Game Mappings">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Grid.Row="0" Text="Launcher Game Mappings (translates launcher AppIDs/Names to real game processes):" Margin="0,0,0,10"/>
+                    
+                    <DataGrid Grid.Row="1" x:Name="DgGameMappings" AutoGenerateColumns="False" CanUserAddRows="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Game Name" Binding="{Binding Name}" Width="1.5*"/>
+                            <DataGridTextColumn Header="App ID" Binding="{Binding AppId}" Width="*"/>
+                            <DataGridTextColumn Header="Launcher" Binding="{Binding Launcher}" Width="*"/>
+                            <DataGridTextColumn Header="Executables (comma-separated)" Binding="{Binding ExecutablesString}" Width="2*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    
+                    <ui:Button Grid.Row="2" Content="Save Game Mappings" Click="BtnSaveMappings_Click" Margin="0,10,0,0" Appearance="Primary" HorizontalAlignment="Right"/>
+                </Grid>
+            </TabItem>
+            
+            <!-- Ignored List Tab -->
+            <TabItem Header="Ignored List">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Grid.Row="0" Text="Blacklisted executables (ignored during automatic scans):" Margin="0,0,0,10"/>
+                    
+                    <DataGrid Grid.Row="1" x:Name="DgIgnoredList" AutoGenerateColumns="False" CanUserAddRows="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Executable Name (e.g. crash_handler.exe)" Binding="{Binding Executable}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    
+                    <ui:Button Grid.Row="2" Content="Save Ignored List" Click="BtnSaveIgnored_Click" Margin="0,10,0,0" Appearance="Primary" HorizontalAlignment="Right"/>
+                </Grid>
+            </TabItem>
+
             <!-- Maintenance Tab -->
             <TabItem Header="Maintenance">
                 <StackPanel Margin="20" MaxWidth="400" HorizontalAlignment="Left">
