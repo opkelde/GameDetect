@@ -20,10 +20,12 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     private static readonly string CustomGamesPath = Path.Combine(AppDataDir, "custom_games.json");
     private static readonly string MappingsPath = Path.Combine(AppDataDir, "known_game_mappings.json");
     private static readonly string IgnoredPath = Path.Combine(AppDataDir, "ignored_executables.json");
+    private static readonly string IgnoredGamesPath = Path.Combine(AppDataDir, "ignored_games.json");
 
     public ObservableCollection<CustomGameUIEntry> CustomGames { get; set; } = new();
     public ObservableCollection<GameMappingEntry> GameMappings { get; set; } = new();
     public ObservableCollection<IgnoredExecutableEntry> IgnoredExecutables { get; set; } = new();
+    public ObservableCollection<IgnoredGameEntry> IgnoredGames { get; set; } = new();
     public ObservableCollection<ScannedGameUIEntry> DetectedGames { get; set; } = new();
 
     public SettingsWindow()
@@ -35,6 +37,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         LoadCustomGames();
         LoadMappings();
         LoadIgnoredExecutables();
+        LoadIgnoredGames();
         LoadDetectedGames();
         
         ChkAutostart.IsChecked = AutostartManager.IsAutostartEnabled();
@@ -249,14 +252,14 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
             var games = JsonSerializer.Deserialize<KnownGame[]>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (games != null)
             {
-                var ignoredSet = new HashSet<string>(
-                    IgnoredExecutables.Select(x => x.Executable.Trim()), 
+                var ignoredGamesSet = new HashSet<string>(
+                    IgnoredGames.Select(x => x.GameName.Trim()), 
                     StringComparer.OrdinalIgnoreCase
                 );
 
                 foreach (var game in games)
                 {
-                    var isIgnored = !string.IsNullOrEmpty(game.ExecutableName) && ignoredSet.Contains(game.ExecutableName.Trim());
+                    var isIgnored = !string.IsNullOrEmpty(game.Name) && ignoredGamesSet.Contains(game.Name.Trim());
                     DetectedGames.Add(new ScannedGameUIEntry
                     {
                         Name = game.Name,
@@ -371,28 +374,25 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (sender is not System.Windows.Controls.Button btn || btn.DataContext is not ScannedGameUIEntry game) return;
 
-        if (string.IsNullOrWhiteSpace(game.PrimaryExecutable))
-        {
-            MessageBox.Show("Cannot ignore game: primary executable name is empty.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
-        var result = MessageBox.Show($"Are you sure you want to ignore executable '{game.PrimaryExecutable}' for '{game.Name}'? It will no longer be tracked as a game.", "Confirm Ignore", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        var result = MessageBox.Show($"Are you sure you want to ignore '{game.Name}'? It will no longer be tracked as a game.", "Confirm Ignore", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (result != MessageBoxResult.Yes) return;
 
         try
         {
-            var exeToIgnore = game.PrimaryExecutable.Trim();
+            var gameToIgnore = game.Name.Trim();
             
-            // 1. Add to local IgnoredExecutables collection if not present
-            if (!IgnoredExecutables.Any(x => string.Equals(x.Executable, exeToIgnore, StringComparison.OrdinalIgnoreCase)))
+            // 1. Add to local IgnoredGames collection if not present
+            if (!IgnoredGames.Any(x => string.Equals(x.GameName, gameToIgnore, StringComparison.OrdinalIgnoreCase)))
             {
-                IgnoredExecutables.Add(new IgnoredExecutableEntry { Executable = exeToIgnore });
-                SaveIgnoredListToFile();
+                IgnoredGames.Add(new IgnoredGameEntry { GameName = gameToIgnore });
+                SaveIgnoredGamesListToFile();
             }
 
             // 2. Set IsIgnored to true on UI model to trigger opacity / action button toggle
             game.IsIgnored = true;
+
+            // 3. Show restart button
+            if (BtnRestartService != null) BtnRestartService.Visibility = Visibility.Visible;
         }
         catch (Exception ex)
         {
@@ -406,18 +406,21 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
         try
         {
-            var exeToTrack = game.PrimaryExecutable.Trim();
+            var gameToTrack = game.Name.Trim();
             
-            // 1. Remove from local IgnoredExecutables collection
-            var itemToRemove = IgnoredExecutables.FirstOrDefault(x => string.Equals(x.Executable, exeToTrack, StringComparison.OrdinalIgnoreCase));
+            // 1. Remove from local IgnoredGames collection
+            var itemToRemove = IgnoredGames.FirstOrDefault(x => string.Equals(x.GameName, gameToTrack, StringComparison.OrdinalIgnoreCase));
             if (itemToRemove != null)
             {
-                IgnoredExecutables.Remove(itemToRemove);
-                SaveIgnoredListToFile();
+                IgnoredGames.Remove(itemToRemove);
+                SaveIgnoredGamesListToFile();
             }
 
             // 2. Set IsIgnored to false on UI model to restore opacity / action button toggle
             game.IsIgnored = false;
+
+            // 3. Show restart button
+            if (BtnRestartService != null) BtnRestartService.Visibility = Visibility.Visible;
         }
         catch (Exception ex)
         {
@@ -441,14 +444,14 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
     private void SyncScannedLibraryIgnoreState()
     {
-        var ignoredSet = new HashSet<string>(
-            IgnoredExecutables.Select(x => x.Executable.Trim()), 
+        var ignoredGamesSet = new HashSet<string>(
+            IgnoredGames.Select(x => x.GameName.Trim()), 
             StringComparer.OrdinalIgnoreCase
         );
 
         foreach (var game in DetectedGames)
         {
-            game.IsIgnored = !string.IsNullOrEmpty(game.PrimaryExecutable) && ignoredSet.Contains(game.PrimaryExecutable.Trim());
+            game.IsIgnored = !string.IsNullOrEmpty(game.Name) && ignoredGamesSet.Contains(game.Name.Trim());
         }
     }
 
@@ -574,12 +577,83 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         try
         {
             SaveIgnoredListToFile();
+            SaveIgnoredGamesListToFile();
             SyncScannedLibraryIgnoreState();
-            MessageBox.Show("Ignored executables list saved successfully! It will take effect on next scan.", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("Ignored lists saved successfully! Please restart the background service for changes to take effect.", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to save ignored list: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void LoadIgnoredGames()
+    {
+        if (!File.Exists(IgnoredGamesPath)) return;
+
+        try
+        {
+            var json = File.ReadAllText(IgnoredGamesPath);
+            var root = JsonDocument.Parse(json).RootElement;
+            if (root.TryGetProperty("ignored_games", out var ignoredElement))
+            {
+                var ignored = JsonSerializer.Deserialize<string[]>(ignoredElement.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (ignored != null)
+                {
+                    foreach (var game in ignored)
+                    {
+                        IgnoredGames.Add(new IgnoredGameEntry { GameName = game });
+                    }
+                }
+            }
+        }
+        catch { }
+
+        DgIgnoredGames.ItemsSource = IgnoredGames;
+    }
+
+    private void SaveIgnoredGamesListToFile()
+    {
+        if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+
+        var ignoredList = IgnoredGames
+            .Where(entry => !string.IsNullOrEmpty(entry.GameName))
+            .Select(entry => entry.GameName.Trim())
+            .ToList();
+
+        var db = new { ignored_games = ignoredList };
+        var json = JsonSerializer.Serialize(db, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(IgnoredGamesPath, json);
+    }
+
+    private async void BtnRestartService_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (System.Windows.Application.Current.Properties["Host"] is Microsoft.Extensions.Hosting.IHost host)
+            {
+                BtnRestartService.IsEnabled = false;
+                BtnRestartService.Content = "Restarting...";
+
+                await host.StopAsync();
+                await host.StartAsync();
+
+                BtnRestartService.Visibility = Visibility.Collapsed;
+                MessageBox.Show("Background service restarted successfully! Ignore changes are now active.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                MessageBox.Show("Unable to restart service: Host reference not found.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to restart background service: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            BtnRestartService.IsEnabled = true;
+            BtnRestartService.Content = "Restart Service";
         }
     }
 }
@@ -595,6 +669,11 @@ public class GameMappingEntry
 public class IgnoredExecutableEntry
 {
     public string Executable { get; set; } = string.Empty;
+}
+
+public class IgnoredGameEntry
+{
+    public string GameName { get; set; } = string.Empty;
 }
 
 public class CustomGameUIEntry

@@ -133,4 +133,25 @@ public class CustomGamesAndSettingsTests
             if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
         }
     }
+
+    [Fact]
+    public void IgnoredGamesDatabase_DeserializesCorrectly()
+    {
+        // Arrange
+        var json = """
+        {
+            "ignored_games": [
+                "Wallpaper Engine",
+                "Spam Game"
+            ]
+        }
+        """;
+
+        // Act
+        var db = JsonSerializer.Deserialize<IgnoredGamesDatabase>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        // Assert
+        db.Should().NotBeNull();
+        db!.IgnoredGames.Should().ContainInOrder("Wallpaper Engine", "Spam Game");
+    }
 }

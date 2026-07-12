@@ -4,6 +4,7 @@ using GameDetect.State;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.IO;
 
 namespace GameDetect.Detection;
 
@@ -60,6 +61,7 @@ public class GameScannerService : BackgroundService
         }
 
         var customGames = _customGamesLoader.Load(_settings.CustomGamesPath);
+        var ignoredGames = LoadIgnoredGames();
 
         if (_settings.EnableLauncherScanning)
         {
@@ -78,10 +80,20 @@ public class GameScannerService : BackgroundService
                     customGames = _customGamesLoader.Load(_settings.CustomGamesPath);
                 }
 
+                // Refresh ignored games list
+                ignoredGames = LoadIgnoredGames();
+
                 var candidates = _processMonitor.GetGameCandidates();
                 var isFullscreen = _fullscreenDetector.IsFullscreen();
 
                 var detected = _gameMatcher.Match(candidates, _launcherScanner.GameDatabase, customGames, isFullscreen);
+                
+                // Filter out ignored games by name
+                if (detected != null && ignoredGames.Contains(detected.Name))
+                {
+                    detected = null;
+                }
+
                 var (state, changed) = _stateManager.UpdateState(detected);
 
                 if (changed)
@@ -107,6 +119,27 @@ public class GameScannerService : BackgroundService
 
         _logger.LogInformation("GameScannerService is stopping.");
         await _mqttPublisher.DisposeAsync();
+    }
+
+    private HashSet<string> LoadIgnoredGames()
+    {
+        try
+        {
+            if (File.Exists(_settings.IgnoredGamesPath))
+            {
+                var json = File.ReadAllText(_settings.IgnoredGamesPath);
+                var db = System.Text.Json.JsonSerializer.Deserialize<Models.IgnoredGamesDatabase>(json);
+                if (db?.IgnoredGames != null)
+                {
+                    return new HashSet<string>(db.IgnoredGames, StringComparer.OrdinalIgnoreCase);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load ignored games from {Path}", _settings.IgnoredGamesPath);
+        }
+        return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 }
 

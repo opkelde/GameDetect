@@ -55,6 +55,7 @@ public class Program
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown
         };
+        app.Properties["Host"] = host;
 
         // Determine initial theme on start (Auto by default)
         var initialTheme = "Auto";

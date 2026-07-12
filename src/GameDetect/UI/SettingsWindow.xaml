@@ -100,20 +100,47 @@
             <TabItem Header="Ignored List">
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     
-                    <TextBlock Grid.Row="0" Text="Blacklisted executables (ignored during automatic scans):" Margin="0,0,0,10"/>
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <!-- Left Column: Executables Blacklist -->
+                        <Grid Grid.Column="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Blacklisted executables (ignored during automatic scans):" Margin="0,0,0,10"/>
+                            <DataGrid Grid.Row="1" x:Name="DgIgnoredList" AutoGenerateColumns="False" CanUserAddRows="True">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Executable Name (e.g. crash_handler.exe)" Binding="{Binding Executable}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                        
+                        <!-- Right Column: Ignored Games -->
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Ignored Games (completely excluded from tracking):" Margin="0,0,0,10"/>
+                            <DataGrid Grid.Row="1" x:Name="DgIgnoredGames" AutoGenerateColumns="False" CanUserAddRows="True">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Game Name (e.g. Wallpaper Engine)" Binding="{Binding GameName}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Grid>
+                    </Grid>
                     
-                    <DataGrid Grid.Row="1" x:Name="DgIgnoredList" AutoGenerateColumns="False" CanUserAddRows="True">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Executable Name (e.g. crash_handler.exe)" Binding="{Binding Executable}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
-                    
-                    <ui:Button Grid.Row="2" Content="Save Ignored List" Click="BtnSaveIgnored_Click" Margin="0,10,0,0" Appearance="Primary" HorizontalAlignment="Right"/>
+                    <ui:Button Grid.Row="1" Content="Save Ignored Lists" Click="BtnSaveIgnored_Click" Margin="0,10,0,0" Appearance="Primary" HorizontalAlignment="Right"/>
                 </Grid>
             </TabItem>
             
@@ -123,6 +150,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     
                     <TextBlock Grid.Row="0" Text="Detected games found on this system (read-only):" Margin="0,0,0,10"/>
@@ -157,6 +185,9 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
+                    
+                    <ui:Button Grid.Row="2" x:Name="BtnRestartService" Content="Restart Service" Click="BtnRestartService_Click"
+                               Margin="0,10,0,0" Appearance="Primary" HorizontalAlignment="Right" Visibility="Collapsed"/>
                 </Grid>
             </TabItem>
 
