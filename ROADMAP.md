@@ -2,6 +2,9 @@
 
 This document outlines the planned improvements, architectural updates, and feature milestones for GameDetect.
 
+> [!NOTE]
+> Functional code prototypes for many of these features are prepared inside the untracked folder `ROADMAP-TEMP/` for rapid future development.
+
 ---
 
 ## 🗺️ Release Phases
