@@ -21,27 +21,35 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     private static readonly string MappingsPath = Path.Combine(AppDataDir, "known_game_mappings.json");
     private static readonly string IgnoredPath = Path.Combine(AppDataDir, "ignored_executables.json");
 
-    public ObservableCollection<CustomGameEntry> CustomGames { get; set; } = new();
+    public ObservableCollection<CustomGameUIEntry> CustomGames { get; set; } = new();
     public ObservableCollection<GameMappingEntry> GameMappings { get; set; } = new();
     public ObservableCollection<IgnoredExecutableEntry> IgnoredExecutables { get; set; } = new();
+    public ObservableCollection<KnownGame> DetectedGames { get; set; } = new();
 
     public SettingsWindow()
     {
         InitializeComponent();
         ApplicationThemeManager.Apply(this);
-        SystemThemeWatcher.Watch(this);
 
         LoadSettings();
         LoadCustomGames();
         LoadMappings();
         LoadIgnoredExecutables();
+        LoadDetectedGames();
         
         ChkAutostart.IsChecked = AutostartManager.IsAutostartEnabled();
     }
 
+    private bool _isThemeInitialized = false;
+
     private void LoadSettings()
     {
-        if (!File.Exists(AppSettingsPath)) return;
+        if (!File.Exists(AppSettingsPath))
+        {
+            _isThemeInitialized = true;
+            ApplySelectedTheme("Auto");
+            return;
+        }
 
         try
         {
@@ -60,8 +68,29 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
             {
                 TxtDeviceName.Text = node["Service"]?["DeviceName"]?.ToString() ?? "";
             }
+
+            string theme = "Auto";
+            if (node != null && node["Service"]?["Theme"] != null)
+            {
+                theme = node["Service"]?["Theme"]?.ToString() ?? "Auto";
+            }
+
+            _isThemeInitialized = false;
+            if (string.Equals(theme, "Light", StringComparison.OrdinalIgnoreCase))
+                CmbTheme.SelectedIndex = 1;
+            else if (string.Equals(theme, "Dark", StringComparison.OrdinalIgnoreCase))
+                CmbTheme.SelectedIndex = 2;
+            else
+                CmbTheme.SelectedIndex = 0;
+
+            _isThemeInitialized = true;
+            ApplySelectedTheme(theme);
         }
-        catch { }
+        catch 
+        {
+            _isThemeInitialized = true;
+            ApplySelectedTheme("Auto");
+        }
     }
 
     private void LoadCustomGames()
@@ -76,7 +105,17 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
                 var games = JsonSerializer.Deserialize<CustomGameEntry[]>(gamesElement.GetRawText(), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (games != null)
                 {
-                    foreach (var game in games) CustomGames.Add(game);
+                    foreach (var game in games)
+                    {
+                        CustomGames.Add(new CustomGameUIEntry
+                        {
+                            Name = game.Name,
+                            AppId = game.AppId ?? "",
+                            Launcher = game.Launcher ?? "Custom",
+                            ExecutablesString = game.Executables != null ? string.Join(", ", game.Executables) : "",
+                            MatchWindowTitle = game.MatchWindowTitle ?? ""
+                        });
+                    }
                 }
             }
         }
@@ -113,6 +152,11 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
             if (node["Service"] == null) node["Service"] = new JsonObject();
             node["Service"]!["DeviceName"] = TxtDeviceName.Text;
 
+            string selectedTheme = "Auto";
+            if (CmbTheme.SelectedIndex == 1) selectedTheme = "Light";
+            else if (CmbTheme.SelectedIndex == 2) selectedTheme = "Dark";
+            node["Service"]!["Theme"] = selectedTheme;
+
             File.WriteAllText(AppSettingsPath, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 
             if (ChkAutostart.IsChecked == true) AutostartManager.EnableAutostart();
@@ -133,8 +177,20 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
             var dir = Path.GetDirectoryName(CustomGamesPath);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
-            var root = new { games = CustomGames };
-            var json = JsonSerializer.Serialize(root, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            var dbGames = CustomGames.Select(c => new CustomGameEntry
+            {
+                Name = c.Name,
+                AppId = string.IsNullOrWhiteSpace(c.AppId) ? null : c.AppId.Trim(),
+                Launcher = string.IsNullOrWhiteSpace(c.Launcher) ? "Custom" : c.Launcher.Trim(),
+                Executables = c.ExecutablesString.Split(',')
+                    .Select(x => x.Trim())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToList(),
+                MatchWindowTitle = string.IsNullOrWhiteSpace(c.MatchWindowTitle) ? null : c.MatchWindowTitle.Trim()
+            }).ToList();
+
+            var root = new { games = dbGames };
+            var json = JsonSerializer.Serialize(root, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(CustomGamesPath, json);
 
             MessageBox.Show("Custom games saved successfully!", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -181,16 +237,66 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private void BtnLightMode_Click(object sender, RoutedEventArgs e)
+    private void LoadDetectedGames()
     {
-        ApplicationThemeManager.Apply(ApplicationTheme.Light, Wpf.Ui.Controls.WindowBackdropType.Acrylic);
-        ApplicationThemeManager.Apply(this);
+        var detectedPath = Path.Combine(AppDataDir, "detected_games.json");
+        if (!File.Exists(detectedPath)) return;
+        try
+        {
+            var json = File.ReadAllText(detectedPath);
+            var games = JsonSerializer.Deserialize<KnownGame[]>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (games != null)
+            {
+                foreach (var game in games) DetectedGames.Add(game);
+            }
+        }
+        catch { }
+
+        DgScannedLibrary.ItemsSource = DetectedGames;
     }
 
-    private void BtnDarkMode_Click(object sender, RoutedEventArgs e)
+    private void CmbTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        ApplicationThemeManager.Apply(ApplicationTheme.Dark, Wpf.Ui.Controls.WindowBackdropType.Acrylic);
-        ApplicationThemeManager.Apply(this);
+        if (!_isThemeInitialized || CmbTheme == null) return;
+        
+        string selectedTheme = "Auto";
+        if (CmbTheme.SelectedIndex == 1) selectedTheme = "Light";
+        else if (CmbTheme.SelectedIndex == 2) selectedTheme = "Dark";
+        
+        ApplySelectedTheme(selectedTheme);
+    }
+
+    private void ApplySelectedTheme(string themeStr)
+    {
+        bool isLoaded = this.IsLoaded;
+        if (string.Equals(themeStr, "Light", StringComparison.OrdinalIgnoreCase))
+        {
+            if (isLoaded)
+            {
+                try { SystemThemeWatcher.UnWatch(this); } catch {}
+            }
+            ApplicationThemeManager.Apply(ApplicationTheme.Light, Wpf.Ui.Controls.WindowBackdropType.None);
+            ApplicationThemeManager.Apply(this);
+        }
+        else if (string.Equals(themeStr, "Dark", StringComparison.OrdinalIgnoreCase))
+        {
+            if (isLoaded)
+            {
+                try { SystemThemeWatcher.UnWatch(this); } catch {}
+            }
+            ApplicationThemeManager.Apply(ApplicationTheme.Dark, Wpf.Ui.Controls.WindowBackdropType.None);
+            ApplicationThemeManager.Apply(this);
+        }
+        else
+        {
+            if (isLoaded)
+            {
+                try { SystemThemeWatcher.UnWatch(this); } catch {}
+            }
+            ApplicationThemeManager.Apply(ApplicationThemeManager.GetSystemTheme() == SystemTheme.Light ? ApplicationTheme.Light : ApplicationTheme.Dark, Wpf.Ui.Controls.WindowBackdropType.None);
+            SystemThemeWatcher.Watch(this);
+            ApplicationThemeManager.Apply(this);
+        }
     }
 
     private void EnsureConfigFileExists(string targetPath, string fileName)
@@ -345,5 +451,14 @@ public class GameMappingEntry
 public class IgnoredExecutableEntry
 {
     public string Executable { get; set; } = string.Empty;
+}
+
+public class CustomGameUIEntry
+{
+    public string Name { get; set; } = string.Empty;
+    public string AppId { get; set; } = string.Empty;
+    public string Launcher { get; set; } = "Custom";
+    public string ExecutablesString { get; set; } = string.Empty;
+    public string MatchWindowTitle { get; set; } = string.Empty;
 }
 

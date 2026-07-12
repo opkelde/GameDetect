@@ -55,12 +55,20 @@ public class Program
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown
         };
+
+        app.Resources.MergedDictionaries.Add(new Wpf.Ui.Markup.ThemesDictionary());
+        app.Resources.MergedDictionaries.Add(new Wpf.Ui.Markup.ControlsDictionary());
         
         GameDetect.UI.TrayIconManager? trayIcon = null;
         
         app.DispatcherUnhandledException += (s, e) =>
         {
-            File.WriteAllText("wpf_crash.log", e.Exception.ToString());
+            try
+            {
+                var crashPath = Path.Combine(appDataFolder, "wpf_crash.log");
+                File.WriteAllText(crashPath, e.Exception.ToString());
+            }
+            catch {}
             e.Handled = true;
         };
 

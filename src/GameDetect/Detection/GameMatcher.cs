@@ -19,7 +19,7 @@ public class GameMatcher : IGameMatcher
 
             // 1. Check Custom Games first (overrides)
             var customMatch = customGames.FirstOrDefault(c => 
-                string.Equals(c.Executable, exeName, StringComparison.OrdinalIgnoreCase));
+                c.Executables != null && c.Executables.Any(exe => string.Equals(exe, exeName, StringComparison.OrdinalIgnoreCase)));
 
             if (customMatch != null)
             {
@@ -27,13 +27,13 @@ public class GameMatcher : IGameMatcher
                 {
                     if (proc.WindowTitle != null && proc.WindowTitle.Contains(customMatch.MatchWindowTitle, StringComparison.OrdinalIgnoreCase))
                     {
-                        matchedGames.Add((proc, customMatch.Name, customMatch.Launcher, null));
+                        matchedGames.Add((proc, customMatch.Name, customMatch.Launcher, customMatch.AppId));
                         continue;
                     }
                 }
                 else
                 {
-                    matchedGames.Add((proc, customMatch.Name, customMatch.Launcher, null));
+                    matchedGames.Add((proc, customMatch.Name, customMatch.Launcher, customMatch.AppId));
                     continue;
                 }
             }

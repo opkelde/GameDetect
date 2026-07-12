@@ -8,15 +8,8 @@
         ExtendsContentIntoTitleBar="True"
         Icon="pack://application:,,,/icon.png"
         WindowCornerPreference="Round"
-        WindowBackdropType="Acrylic">
-    <ui:FluentWindow.Resources>
-        <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ui:ThemesDictionary Theme="Dark" />
-                <ui:ControlsDictionary />
-            </ResourceDictionary.MergedDictionaries>
-        </ResourceDictionary>
-    </ui:FluentWindow.Resources>
+        WindowBackdropType="None">
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -56,9 +49,11 @@
                     
                     <DataGrid Grid.Row="1" x:Name="DgCustomGames" AutoGenerateColumns="False" CanUserAddRows="True">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Game Name" Binding="{Binding Name}" Width="*"/>
-                            <DataGridTextColumn Header="Executable (e.g. game.exe)" Binding="{Binding Executable}" Width="*"/>
-                            <DataGridTextColumn Header="Window Title (Optional)" Binding="{Binding MatchWindowTitle}" Width="*"/>
+                            <DataGridTextColumn Header="Game Name" Binding="{Binding Name}" Width="1.5*"/>
+                            <DataGridTextColumn Header="App ID" Binding="{Binding AppId}" Width="*"/>
+                            <DataGridTextColumn Header="Launcher" Binding="{Binding Launcher}" Width="*"/>
+                            <DataGridTextColumn Header="Executables (comma-separated)" Binding="{Binding ExecutablesString}" Width="2*"/>
+                            <DataGridTextColumn Header="Window Title (Optional)" Binding="{Binding MatchWindowTitle}" Width="1.5*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                     
@@ -110,6 +105,28 @@
                     <ui:Button Grid.Row="2" Content="Save Ignored List" Click="BtnSaveIgnored_Click" Margin="0,10,0,0" Appearance="Primary" HorizontalAlignment="Right"/>
                 </Grid>
             </TabItem>
+            
+            <!-- Scanned Library Tab -->
+            <TabItem Header="Scanned Library">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <TextBlock Grid.Row="0" Text="Detected games found on this system (read-only):" Margin="0,0,0,10"/>
+                    
+                    <DataGrid Grid.Row="1" x:Name="DgScannedLibrary" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Game Name" Binding="{Binding Name}" Width="1.5*"/>
+                            <DataGridTextColumn Header="App ID" Binding="{Binding AppId}" Width="*"/>
+                            <DataGridTextColumn Header="Launcher" Binding="{Binding Launcher}" Width="*"/>
+                            <DataGridTextColumn Header="Primary Executable" Binding="{Binding PrimaryExecutable}" Width="1.5*"/>
+                            <DataGridTextColumn Header="Install Path" Binding="{Binding Path}" Width="3*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
 
             <!-- Maintenance Tab -->
             <TabItem Header="Maintenance">
@@ -119,10 +136,11 @@
                     <ui:Button Content="Restore Settings from Zip" Click="BtnRestore_Click" Margin="0,10,0,0" Icon="{ui:SymbolIcon ArrowUpload24}" Width="250"/>
                     
                     <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold" Margin="0,30,0,10"/>
-                    <StackPanel Orientation="Horizontal">
-                        <ui:Button Content="Light Mode" Click="BtnLightMode_Click" Margin="0,0,10,0" Icon="{ui:SymbolIcon WeatherSunny24}"/>
-                        <ui:Button Content="Dark Mode" Click="BtnDarkMode_Click" Margin="0,0,10,0" Icon="{ui:SymbolIcon WeatherMoon24}"/>
-                    </StackPanel>
+                    <ComboBox x:Name="CmbTheme" SelectedIndex="0" Width="200" HorizontalAlignment="Left" SelectionChanged="CmbTheme_SelectionChanged">
+                        <ComboBoxItem Content="Auto (System Default)" />
+                        <ComboBoxItem Content="Light Mode" />
+                        <ComboBoxItem Content="Dark Mode" />
+                    </ComboBox>
                 </StackPanel>
             </TabItem>
         </TabControl>
