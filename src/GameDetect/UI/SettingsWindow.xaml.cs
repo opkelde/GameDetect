@@ -24,7 +24,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     public ObservableCollection<CustomGameUIEntry> CustomGames { get; set; } = new();
     public ObservableCollection<GameMappingEntry> GameMappings { get; set; } = new();
     public ObservableCollection<IgnoredExecutableEntry> IgnoredExecutables { get; set; } = new();
-    public ObservableCollection<KnownGame> DetectedGames { get; set; } = new();
+    public ObservableCollection<ScannedGameUIEntry> DetectedGames { get; set; } = new();
 
     public SettingsWindow()
     {
@@ -247,7 +247,24 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
             var games = JsonSerializer.Deserialize<KnownGame[]>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (games != null)
             {
-                foreach (var game in games) DetectedGames.Add(game);
+                var ignoredSet = new HashSet<string>(
+                    IgnoredExecutables.Select(x => x.Executable.Trim()), 
+                    StringComparer.OrdinalIgnoreCase
+                );
+
+                foreach (var game in games)
+                {
+                    var isIgnored = !string.IsNullOrEmpty(game.ExecutableName) && ignoredSet.Contains(game.ExecutableName.Trim());
+                    DetectedGames.Add(new ScannedGameUIEntry
+                    {
+                        Name = game.Name,
+                        AppId = game.AppId ?? "",
+                        Launcher = game.Launcher ?? "",
+                        PrimaryExecutable = game.ExecutableName ?? "",
+                        Path = game.InstallPath ?? "",
+                        IsIgnored = isIgnored
+                    });
+                }
             }
         }
         catch { }
@@ -264,38 +281,172 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         else if (CmbTheme.SelectedIndex == 2) selectedTheme = "Dark";
         
         ApplySelectedTheme(selectedTheme);
+
+        if (TxtThemeRestartWarning != null)
+        {
+            TxtThemeRestartWarning.Visibility = Visibility.Visible;
+        }
+
+        try
+        {
+            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+            JsonNode node = File.Exists(AppSettingsPath) ? JsonNode.Parse(File.ReadAllText(AppSettingsPath))! : new JsonObject();
+
+            if (node["Service"] == null) node["Service"] = new JsonObject();
+            node["Service"]!["Theme"] = selectedTheme;
+
+            File.WriteAllText(AppSettingsPath, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch { }
     }
 
     private void ApplySelectedTheme(string themeStr)
     {
         bool isLoaded = this.IsLoaded;
+        ApplicationTheme targetTheme = ApplicationTheme.Dark;
+
         if (string.Equals(themeStr, "Light", StringComparison.OrdinalIgnoreCase))
         {
+            targetTheme = ApplicationTheme.Light;
             if (isLoaded)
             {
                 try { SystemThemeWatcher.UnWatch(this); } catch {}
             }
-            ApplicationThemeManager.Apply(ApplicationTheme.Light, Wpf.Ui.Controls.WindowBackdropType.None);
-            ApplicationThemeManager.Apply(this);
         }
         else if (string.Equals(themeStr, "Dark", StringComparison.OrdinalIgnoreCase))
         {
+            targetTheme = ApplicationTheme.Dark;
             if (isLoaded)
             {
                 try { SystemThemeWatcher.UnWatch(this); } catch {}
             }
-            ApplicationThemeManager.Apply(ApplicationTheme.Dark, Wpf.Ui.Controls.WindowBackdropType.None);
-            ApplicationThemeManager.Apply(this);
         }
         else
         {
+            // Auto - match system theme
+            targetTheme = ApplicationThemeManager.GetSystemTheme() == SystemTheme.Light ? ApplicationTheme.Light : ApplicationTheme.Dark;
             if (isLoaded)
             {
                 try { SystemThemeWatcher.UnWatch(this); } catch {}
+                SystemThemeWatcher.Watch(this);
             }
-            ApplicationThemeManager.Apply(ApplicationThemeManager.GetSystemTheme() == SystemTheme.Light ? ApplicationTheme.Light : ApplicationTheme.Dark, Wpf.Ui.Controls.WindowBackdropType.None);
-            SystemThemeWatcher.Watch(this);
+        }
+
+        // Apply globally
+        ApplicationThemeManager.Apply(targetTheme, Wpf.Ui.Controls.WindowBackdropType.None);
+        
+        // Re-apply to window only during initial load, as calling it dynamically at runtime 
+        // can corrupt the WPF active visual rendering tree (leading to blank/white areas).
+        if (!isLoaded)
+        {
             ApplicationThemeManager.Apply(this);
+        }
+
+        // Force a global WPF resource dictionary refresh to clear the cache and force open windows to repaint instantly
+        if (System.Windows.Application.Current != null)
+        {
+            var appResources = System.Windows.Application.Current.Resources;
+            var themeDict = appResources.MergedDictionaries.FirstOrDefault(d => d is Wpf.Ui.Markup.ThemesDictionary) as Wpf.Ui.Markup.ThemesDictionary;
+            if (themeDict != null)
+            {
+                appResources.MergedDictionaries.Remove(themeDict);
+                appResources.MergedDictionaries.Insert(0, themeDict);
+            }
+        }
+
+        // Queue a render invalidation on the Dispatcher to force the window visual tree to fully redraw
+        if (isLoaded)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                this.InvalidateVisual();
+                this.UpdateLayout();
+            }), System.Windows.Threading.DispatcherPriority.Render);
+        }
+    }
+
+    private void BtnIgnoreScannedGame_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button btn || btn.DataContext is not ScannedGameUIEntry game) return;
+
+        if (string.IsNullOrWhiteSpace(game.PrimaryExecutable))
+        {
+            MessageBox.Show("Cannot ignore game: primary executable name is empty.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var result = MessageBox.Show($"Are you sure you want to ignore executable '{game.PrimaryExecutable}' for '{game.Name}'? It will no longer be tracked as a game.", "Confirm Ignore", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            var exeToIgnore = game.PrimaryExecutable.Trim();
+            
+            // 1. Add to local IgnoredExecutables collection if not present
+            if (!IgnoredExecutables.Any(x => string.Equals(x.Executable, exeToIgnore, StringComparison.OrdinalIgnoreCase)))
+            {
+                IgnoredExecutables.Add(new IgnoredExecutableEntry { Executable = exeToIgnore });
+                SaveIgnoredListToFile();
+            }
+
+            // 2. Set IsIgnored to true on UI model to trigger opacity / action button toggle
+            game.IsIgnored = true;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to ignore game: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void BtnTrackScannedGame_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button btn || btn.DataContext is not ScannedGameUIEntry game) return;
+
+        try
+        {
+            var exeToTrack = game.PrimaryExecutable.Trim();
+            
+            // 1. Remove from local IgnoredExecutables collection
+            var itemToRemove = IgnoredExecutables.FirstOrDefault(x => string.Equals(x.Executable, exeToTrack, StringComparison.OrdinalIgnoreCase));
+            if (itemToRemove != null)
+            {
+                IgnoredExecutables.Remove(itemToRemove);
+                SaveIgnoredListToFile();
+            }
+
+            // 2. Set IsIgnored to false on UI model to restore opacity / action button toggle
+            game.IsIgnored = false;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to track game: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void SaveIgnoredListToFile()
+    {
+        if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
+
+        var ignoredList = IgnoredExecutables
+            .Where(entry => !string.IsNullOrEmpty(entry.Executable))
+            .Select(entry => entry.Executable!.Trim())
+            .ToList();
+
+        var db = new IgnoredExecutablesDatabase { IgnoredExecutables = ignoredList };
+        var json = JsonSerializer.Serialize(db, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(IgnoredPath, json);
+    }
+
+    private void SyncScannedLibraryIgnoreState()
+    {
+        var ignoredSet = new HashSet<string>(
+            IgnoredExecutables.Select(x => x.Executable.Trim()), 
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var game in DetectedGames)
+        {
+            game.IsIgnored = !string.IsNullOrEmpty(game.PrimaryExecutable) && ignoredSet.Contains(game.PrimaryExecutable.Trim());
         }
     }
 
@@ -420,17 +571,8 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
     {
         try
         {
-            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
-
-            var ignoredList = IgnoredExecutables
-                .Where(entry => !string.IsNullOrEmpty(entry.Executable))
-                .Select(entry => entry.Executable!.Trim())
-                .ToList();
-
-            var db = new IgnoredExecutablesDatabase { IgnoredExecutables = ignoredList };
-            var json = JsonSerializer.Serialize(db, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(IgnoredPath, json);
-
+            SaveIgnoredListToFile();
+            SyncScannedLibraryIgnoreState();
             MessageBox.Show("Ignored executables list saved successfully! It will take effect on next scan.", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         catch (Exception ex)
@@ -460,5 +602,35 @@ public class CustomGameUIEntry
     public string Launcher { get; set; } = "Custom";
     public string ExecutablesString { get; set; } = string.Empty;
     public string MatchWindowTitle { get; set; } = string.Empty;
+}
+
+public class ScannedGameUIEntry : System.ComponentModel.INotifyPropertyChanged
+{
+    private bool _isIgnored;
+    
+    public string Name { get; set; } = string.Empty;
+    public string AppId { get; set; } = string.Empty;
+    public string Launcher { get; set; } = string.Empty;
+    public string PrimaryExecutable { get; set; } = string.Empty;
+    public string Path { get; set; } = string.Empty;
+
+    public bool IsIgnored
+    {
+        get => _isIgnored;
+        set
+        {
+            if (_isIgnored != value)
+            {
+                _isIgnored = value;
+                OnPropertyChanged(nameof(IsIgnored));
+                OnPropertyChanged(nameof(IsNotIgnored));
+            }
+        }
+    }
+
+    public bool IsNotIgnored => !IsIgnored;
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
 }
 

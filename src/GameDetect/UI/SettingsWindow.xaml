@@ -8,9 +8,13 @@
         ExtendsContentIntoTitleBar="True"
         Icon="pack://application:,,,/icon.png"
         WindowCornerPreference="Round"
-        WindowBackdropType="None">
+        WindowBackdropType="None"
+        Background="{DynamicResource ApplicationBackgroundBrush}">
 
     <Grid>
+        <Grid.Resources>
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
@@ -21,19 +25,26 @@
         <TabControl Grid.Row="1">
             <!-- General Settings Tab -->
             <TabItem Header="General Settings">
-                <StackPanel Margin="20" MaxWidth="400" HorizontalAlignment="Left">
-                    <TextBlock Text="MQTT Broker Configuration" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                    <ui:TextBox x:Name="TxtMqttHost" PlaceholderText="Host (e.g. 192.168.1.5)" Margin="0,5"/>
-                    <ui:TextBox x:Name="TxtMqttPort" PlaceholderText="Port (e.g. 1883)" Margin="0,5"/>
-                    <ui:TextBox x:Name="TxtMqttUser" PlaceholderText="Username" Margin="0,5"/>
-                    <ui:PasswordBox x:Name="TxtMqttPass" PlaceholderText="Password" Margin="0,5"/>
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
                     
-                    <TextBlock Text="Device" FontSize="18" FontWeight="SemiBold" Margin="0,20,0,10"/>
-                    <ui:TextBox x:Name="TxtDeviceName" PlaceholderText="Device Name (e.g. Gaming PC)" Margin="0,5"/>
-                    <ui:ToggleSwitch x:Name="ChkAutostart" Content="Run on Windows Startup" Margin="0,10,0,0"/>
+                    <StackPanel Grid.Row="0" MaxWidth="400" HorizontalAlignment="Left" VerticalAlignment="Top">
+                        <TextBlock Text="MQTT Broker Configuration" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                        <ui:TextBox x:Name="TxtMqttHost" PlaceholderText="Host (e.g. 192.168.1.5)" Margin="0,5"/>
+                        <ui:TextBox x:Name="TxtMqttPort" PlaceholderText="Port (e.g. 1883)" Margin="0,5"/>
+                        <ui:TextBox x:Name="TxtMqttUser" PlaceholderText="Username" Margin="0,5"/>
+                        <ui:PasswordBox x:Name="TxtMqttPass" PlaceholderText="Password" Margin="0,5"/>
+                        
+                        <TextBlock Text="Device" FontSize="18" FontWeight="SemiBold" Margin="0,20,0,10"/>
+                        <ui:TextBox x:Name="TxtDeviceName" PlaceholderText="Device Name (e.g. Gaming PC)" Margin="0,5"/>
+                        <ui:ToggleSwitch x:Name="ChkAutostart" Content="Run on Windows Startup" Margin="0,10,0,0"/>
+                    </StackPanel>
                     
-                    <ui:Button Content="Save &amp; Apply" Click="BtnSave_Click" Margin="0,20,0,0" Appearance="Primary" />
-                </StackPanel>
+                    <ui:Button Grid.Row="1" Content="Save &amp; Apply" Click="BtnSave_Click" Margin="0,10,0,0" Appearance="Primary" HorizontalAlignment="Right"/>
+                </Grid>
             </TabItem>
             
             <!-- Custom Games Tab -->
@@ -116,13 +127,34 @@
                     
                     <TextBlock Grid.Row="0" Text="Detected games found on this system (read-only):" Margin="0,0,0,10"/>
                     
-                    <DataGrid Grid.Row="1" x:Name="DgScannedLibrary" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                    <DataGrid Grid.Row="1" x:Name="DgScannedLibrary" AutoGenerateColumns="False" CanUserAddRows="False">
+                        <DataGrid.Resources>
+                            <Style x:Key="IgnoredTextBlockStyle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsIgnored}" Value="True">
+                                        <Setter Property="Opacity" Value="0.45" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.Resources>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Game Name" Binding="{Binding Name}" Width="1.5*"/>
-                            <DataGridTextColumn Header="App ID" Binding="{Binding AppId}" Width="*"/>
-                            <DataGridTextColumn Header="Launcher" Binding="{Binding Launcher}" Width="*"/>
-                            <DataGridTextColumn Header="Primary Executable" Binding="{Binding PrimaryExecutable}" Width="1.5*"/>
-                            <DataGridTextColumn Header="Install Path" Binding="{Binding Path}" Width="3*"/>
+                            <DataGridTextColumn Header="Game Name" Binding="{Binding Name}" IsReadOnly="True" ElementStyle="{StaticResource IgnoredTextBlockStyle}" Width="1.5*"/>
+                            <DataGridTextColumn Header="App ID" Binding="{Binding AppId}" IsReadOnly="True" ElementStyle="{StaticResource IgnoredTextBlockStyle}" Width="*"/>
+                            <DataGridTextColumn Header="Launcher" Binding="{Binding Launcher}" IsReadOnly="True" ElementStyle="{StaticResource IgnoredTextBlockStyle}" Width="*"/>
+                            <DataGridTextColumn Header="Primary Executable" Binding="{Binding PrimaryExecutable}" IsReadOnly="True" ElementStyle="{StaticResource IgnoredTextBlockStyle}" Width="1.5*"/>
+                            <DataGridTextColumn Header="Install Path" Binding="{Binding Path}" IsReadOnly="True" ElementStyle="{StaticResource IgnoredTextBlockStyle}" Width="3*"/>
+                            <DataGridTemplateColumn Header="Action" Width="100">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <ui:Button Content="Ignore" Appearance="Secondary" Click="BtnIgnoreScannedGame_Click"
+                                                       Visibility="{Binding IsNotIgnored, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                            <ui:Button Content="Track" Appearance="Primary" Click="BtnTrackScannedGame_Click"
+                                                       Visibility="{Binding IsIgnored, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -141,6 +173,12 @@
                         <ComboBoxItem Content="Light Mode" />
                         <ComboBoxItem Content="Dark Mode" />
                     </ComboBox>
+                    <TextBlock x:Name="TxtThemeRestartWarning" 
+                               Text="* Please close and reopen settings for all theme changes to take effect." 
+                               Foreground="Orange" 
+                               FontSize="12" 
+                               Margin="0,10,0,0" 
+                               Visibility="Collapsed" />
                 </StackPanel>
             </TabItem>
         </TabControl>

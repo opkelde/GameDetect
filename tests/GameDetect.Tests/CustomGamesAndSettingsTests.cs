@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.Json;
 using FluentAssertions;
+using GameDetect.Configuration;
 using GameDetect.Detection;
 using GameDetect.Detection.Models;
 using Xunit;
@@ -76,5 +78,59 @@ public class CustomGamesAndSettingsTests
         match2.Should().NotBeNull();
         match2!.Name.Should().Be("Custom Test Game");
         match2.AppId.Should().Be("99999");
+    }
+
+    [Fact]
+    public void LauncherScanner_FiltersOutIgnoredExecutables()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "GameDetect_FilterTests_" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var mappingsPath = Path.Combine(tempDir, "known_game_mappings.json");
+            var ignoredPath = Path.Combine(tempDir, "ignored_executables.json");
+
+            var settings = new DetectionSettings
+            {
+                KnownGameMappingsPath = mappingsPath,
+                IgnoredExecutablesPath = ignoredPath
+            };
+
+            var scanner = new LauncherScanner(Microsoft.Extensions.Logging.Abstractions.NullLogger<LauncherScanner>.Instance, Microsoft.Extensions.Options.Options.Create(settings));
+            var addGameMethod = typeof(LauncherScanner).GetMethod("AddGame", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            var db = new Dictionary<string, KnownGame>();
+            var mappings = new KnownGameMappingsDatabase
+            {
+                Games = new List<KnownGameMapping>
+                {
+                    new KnownGameMapping
+                    {
+                        Name = "Test Game",
+                        AppId = "11111",
+                        Launcher = "Steam",
+                        Executables = new List<string> { "game_normal.exe", "game_ignored.exe" }
+                    }
+                }
+            };
+            
+            var ignoredExes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "game_ignored.exe" };
+
+            var gameFolder = Path.Combine(tempDir, "TestGame");
+            Directory.CreateDirectory(gameFolder);
+            File.WriteAllText(Path.Combine(gameFolder, "game_normal.exe"), "");
+            File.WriteAllText(Path.Combine(gameFolder, "game_ignored.exe"), "");
+
+            // Act
+            addGameMethod!.Invoke(scanner, new object[] { db, "Test Game", gameFolder, "Steam", "11111", mappings, ignoredExes });
+
+            // Assert
+            db.Should().ContainKey("game_normal.exe");
+            db.Should().NotContainKey("game_ignored.exe");
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        }
     }
 }

@@ -56,7 +56,37 @@ public class Program
             ShutdownMode = ShutdownMode.OnExplicitShutdown
         };
 
-        app.Resources.MergedDictionaries.Add(new Wpf.Ui.Markup.ThemesDictionary());
+        // Determine initial theme on start (Auto by default)
+        var initialTheme = "Auto";
+        try
+        {
+            var configPath = Path.Combine(appDataFolder, "config.json");
+            if (File.Exists(configPath))
+            {
+                var json = File.ReadAllText(configPath);
+                var node = System.Text.Json.Nodes.JsonNode.Parse(json);
+                initialTheme = node?["Service"]?["Theme"]?.ToString() ?? "Auto";
+            }
+        }
+        catch {}
+
+        var themeDict = new Wpf.Ui.Markup.ThemesDictionary();
+        if (string.Equals(initialTheme, "Light", StringComparison.OrdinalIgnoreCase))
+        {
+            themeDict.Theme = Wpf.Ui.Appearance.ApplicationTheme.Light;
+        }
+        else if (string.Equals(initialTheme, "Dark", StringComparison.OrdinalIgnoreCase))
+        {
+            themeDict.Theme = Wpf.Ui.Appearance.ApplicationTheme.Dark;
+        }
+        else
+        {
+            // Auto - match system theme
+            var systemTheme = Wpf.Ui.Appearance.ApplicationThemeManager.GetSystemTheme();
+            themeDict.Theme = systemTheme == Wpf.Ui.Appearance.SystemTheme.Light ? Wpf.Ui.Appearance.ApplicationTheme.Light : Wpf.Ui.Appearance.ApplicationTheme.Dark;
+        }
+
+        app.Resources.MergedDictionaries.Add(themeDict);
         app.Resources.MergedDictionaries.Add(new Wpf.Ui.Markup.ControlsDictionary());
         
         GameDetect.UI.TrayIconManager? trayIcon = null;
