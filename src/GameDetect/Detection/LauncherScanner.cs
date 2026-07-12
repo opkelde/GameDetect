@@ -138,6 +138,20 @@ public class LauncherScanner : ILauncherScanner
         _gameDb = db;
         _lastScan = DateTime.UtcNow;
         _logger.LogInformation("Launcher scan complete. Found {Count} game executables mappings.", db.Count);
+
+        try
+        {
+            var uniqueGames = db.Values.Distinct().OrderBy(g => g.Name).ToList();
+            var detectedGamesPath = Path.Combine(Path.GetDirectoryName(_settings.KnownGameMappingsPath) ?? string.Empty, "detected_games.json");
+            
+            var json = JsonSerializer.Serialize(uniqueGames, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(detectedGamesPath, json);
+            _logger.LogInformation("Saved scanned library containing {Count} unique games to {Path}", uniqueGames.Count, detectedGamesPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to write detected_games.json");
+        }
     }
 
     private void ScanDirectoriesForExecutables(string currentDir, int currentDepth, int maxDepth, HashSet<string> result)

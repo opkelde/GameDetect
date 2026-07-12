@@ -164,4 +164,26 @@ public class LauncherScannerTests : IDisposable
         db["game_shipping.exe"].Name.Should().Be("Test Game");
         db["mapped_extra.exe"].Name.Should().Be("Test Game");
     }
+
+    [Fact]
+    public void ScanAll_CreatesDetectedGamesJson_WithUniqueSortedGames()
+    {
+        // Arrange
+        var scanner = new LauncherScanner(NullLogger<LauncherScanner>.Instance, Options.Create(_settings));
+
+        // Act
+        scanner.ScanAll();
+
+        // Assert
+        var detectedGamesPath = Path.Combine(Path.GetDirectoryName(_mappingsPath) ?? string.Empty, "detected_games.json");
+        File.Exists(detectedGamesPath).Should().BeTrue();
+
+        var json = File.ReadAllText(detectedGamesPath);
+        var games = JsonSerializer.Deserialize<List<KnownGame>>(json);
+        games.Should().NotBeNull();
+        
+        var sortedNames = games!.Select(g => g.Name).ToList();
+        sortedNames.Should().BeInAscendingOrder();
+        sortedNames.Distinct().Count().Should().Be(sortedNames.Count);
+    }
 }
