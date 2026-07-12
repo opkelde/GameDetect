@@ -1,0 +1,24 @@
+{
+  "ignored_executables": [
+    "CrashReportClient.exe",
+    "UnrealCEFSubProcess.exe",
+    "UnityCrashHandler32.exe",
+    "UnityCrashHandler64.exe",
+    "crashpad_handler.exe",
+    "epic_online_services.exe",
+    "EpicOnlineServices.exe",
+    "EOSBindCheck.exe",
+    "GameOverlayUI.exe",
+    "steamwebhelper.exe",
+    "unins000.exe",
+    "unins001.exe",
+    "uninstall.exe",
+    "Touchup.exe",
+    "Cleanup.exe",
+    "GDFInstall.exe",
+    "dxwebsetup.exe",
+    "vc_redist.x64.exe",
+    "vc_redist.x86.exe",
+    "physx.exe"
+  ]
+}

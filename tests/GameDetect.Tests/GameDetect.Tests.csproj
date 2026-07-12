@@ -26,5 +26,13 @@
     <ProjectReference Include="..\..\src\GameDetect\GameDetect.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\src\GameDetect\known_game_mappings.json" Link="known_game_mappings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\src\GameDetect\ignored_executables.json" Link="ignored_executables.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
 

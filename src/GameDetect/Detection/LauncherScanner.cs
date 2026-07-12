@@ -23,38 +23,6 @@ public class LauncherScanner : ILauncherScanner
     private Dictionary<string, KnownGame> _gameDb = new(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastScan = DateTime.MinValue;
 
-    private static readonly List<string> DefaultIgnoredExecutables = new()
-    {
-        "CrashReportClient.exe",
-        "UnrealCEFSubProcess.exe",
-        "UnityCrashHandler32.exe",
-        "UnityCrashHandler64.exe",
-        "crashpad_handler.exe",
-        "epic_online_services.exe",
-        "EpicOnlineServices.exe",
-        "EOSBindCheck.exe",
-        "GameOverlayUI.exe",
-        "steamwebhelper.exe",
-        "unins000.exe",
-        "unins001.exe",
-        "uninstall.exe",
-        "Touchup.exe",
-        "Cleanup.exe",
-        "GDFInstall.exe",
-        "dxwebsetup.exe",
-        "vc_redist.x64.exe",
-        "vc_redist.x86.exe",
-        "physx.exe"
-    };
-
-    private static readonly List<KnownGameMapping> DefaultGameMappings = new()
-    {
-        new KnownGameMapping { Name = "Clair Obscura: Expedition 33", AppId = "1807890", Launcher = "Steam", Executables = new() { "SandFall-Win64-Shipping.exe" } },
-        new KnownGameMapping { Name = "RoboCop: Rogue City", AppId = "1680720", Launcher = "Steam", Executables = new() { "RoboCop-Win64-Shipping.exe" } },
-        new KnownGameMapping { Name = "Warhammer 40k: Space Marine 2", AppId = "1675200", Launcher = "Steam", Executables = new() { "Warhammer 40000 Space Marine 2 - Retail.exe" } },
-        new KnownGameMapping { Name = "Slay the Spire 2", AppId = "249940", Launcher = "Steam", Executables = new() { "SlayTheSpire2.exe" } }
-    };
-
     private static readonly HashSet<string> IgnoredDirectories = new(StringComparer.OrdinalIgnoreCase)
     {
         "content", "data", "assets", "media", "resource", "resources", "sound", "music", 
@@ -84,27 +52,31 @@ public class LauncherScanner : ILauncherScanner
                 Directory.CreateDirectory(appDataDir);
             }
 
-            // Ensure known_game_mappings.json
-            if (!File.Exists(_settings.KnownGameMappingsPath))
-            {
-                var db = new KnownGameMappingsDatabase { Games = DefaultGameMappings };
-                var json = JsonSerializer.Serialize(db, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_settings.KnownGameMappingsPath, json);
-                _logger.LogInformation("Created default known game mappings file at {Path}", _settings.KnownGameMappingsPath);
-            }
-
-            // Ensure ignored_executables.json
-            if (!File.Exists(_settings.IgnoredExecutablesPath))
-            {
-                var db = new IgnoredExecutablesDatabase { IgnoredExecutables = DefaultIgnoredExecutables };
-                var json = JsonSerializer.Serialize(db, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_settings.IgnoredExecutablesPath, json);
-                _logger.LogInformation("Created default ignored executables file at {Path}", _settings.IgnoredExecutablesPath);
-            }
+            EnsureConfigFileExists(_settings.KnownGameMappingsPath, "known_game_mappings.json");
+            EnsureConfigFileExists(_settings.IgnoredExecutablesPath, "ignored_executables.json");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to ensure default configuration files");
+        }
+    }
+
+    private void EnsureConfigFileExists(string targetPath, string fileName)
+    {
+        if (!File.Exists(targetPath))
+        {
+            var sourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+            if (File.Exists(sourcePath))
+            {
+                File.Copy(sourcePath, targetPath);
+                _logger.LogInformation("Copied default configuration file from {Source} to {Target}", sourcePath, targetPath);
+            }
+            else
+            {
+                var emptyJson = fileName.Contains("mappings") ? "{\"games\":[]}" : "{\"ignored_executables\":[]}";
+                File.WriteAllText(targetPath, emptyJson);
+                _logger.LogWarning("Source configuration file {File} not found in base directory. Created empty file at {Target}", fileName, targetPath);
+            }
         }
     }
 

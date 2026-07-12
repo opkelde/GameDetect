@@ -193,24 +193,32 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         ApplicationThemeManager.Apply(this);
     }
 
+    private void EnsureConfigFileExists(string targetPath, string fileName)
+    {
+        if (!File.Exists(targetPath))
+        {
+            var appDataDir = Path.GetDirectoryName(targetPath);
+            if (!string.IsNullOrEmpty(appDataDir) && !Directory.Exists(appDataDir))
+            {
+                Directory.CreateDirectory(appDataDir);
+            }
+
+            var sourcePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+            if (File.Exists(sourcePath))
+            {
+                File.Copy(sourcePath, targetPath);
+            }
+            else
+            {
+                var emptyJson = fileName.Contains("mappings") ? "{\"games\":[]}" : "{\"ignored_executables\":[]}";
+                File.WriteAllText(targetPath, emptyJson);
+            }
+        }
+    }
+
     private void LoadMappings()
     {
-        if (!File.Exists(MappingsPath))
-        {
-            var defaultDb = new KnownGameMappingsDatabase
-            {
-                Games = new List<KnownGameMapping>
-                {
-                    new KnownGameMapping { Name = "Clair Obscura: Expedition 33", AppId = "1807890", Launcher = "Steam", Executables = new() { "SandFall-Win64-Shipping.exe" } },
-                    new KnownGameMapping { Name = "RoboCop: Rogue City", AppId = "1680720", Launcher = "Steam", Executables = new() { "RoboCop-Win64-Shipping.exe" } },
-                    new KnownGameMapping { Name = "Warhammer 40k: Space Marine 2", AppId = "1675200", Launcher = "Steam", Executables = new() { "Warhammer 40000 Space Marine 2 - Retail.exe" } },
-                    new KnownGameMapping { Name = "Slay the Spire 2", AppId = "249940", Launcher = "Steam", Executables = new() { "SlayTheSpire2.exe" } }
-                }
-            };
-            var json = JsonSerializer.Serialize(defaultDb, new JsonSerializerOptions { WriteIndented = true });
-            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
-            File.WriteAllText(MappingsPath, json);
-        }
+        EnsureConfigFileExists(MappingsPath, "known_game_mappings.json");
 
         try
         {
@@ -241,23 +249,7 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
 
     private void LoadIgnoredExecutables()
     {
-        if (!File.Exists(IgnoredPath))
-        {
-            var defaultDb = new IgnoredExecutablesDatabase
-            {
-                IgnoredExecutables = new List<string>
-                {
-                    "CrashReportClient.exe", "UnrealCEFSubProcess.exe", "UnityCrashHandler32.exe", "UnityCrashHandler64.exe",
-                    "crashpad_handler.exe", "epic_online_services.exe", "EpicOnlineServices.exe", "EOSBindCheck.exe",
-                    "GameOverlayUI.exe", "steamwebhelper.exe", "unins000.exe", "unins001.exe", "uninstall.exe",
-                    "Touchup.exe", "Cleanup.exe", "GDFInstall.exe", "dxwebsetup.exe", "vc_redist.x64.exe",
-                    "vc_redist.x86.exe", "physx.exe"
-                }
-            };
-            var json = JsonSerializer.Serialize(defaultDb, new JsonSerializerOptions { WriteIndented = true });
-            if (!Directory.Exists(AppDataDir)) Directory.CreateDirectory(AppDataDir);
-            File.WriteAllText(IgnoredPath, json);
-        }
+        EnsureConfigFileExists(IgnoredPath, "ignored_executables.json");
 
         try
         {

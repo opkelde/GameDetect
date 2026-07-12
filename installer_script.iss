@@ -2,7 +2,7 @@
 ; See https://jrsoftware.org/ispphelp.php for details on Inno Setup Scripting
 
 #define MyAppName "GameDetect"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Opkelde"
 #define MyAppURL "https://github.com/opkelde/GameDetect"
 #define MyAppExeName "GameDetect.exe"
