@@ -626,34 +626,20 @@ public partial class SettingsWindow : Wpf.Ui.Controls.FluentWindow
         File.WriteAllText(IgnoredGamesPath, json);
     }
 
-    private async void BtnRestartService_Click(object sender, RoutedEventArgs e)
+    private void BtnRestartService_Click(object sender, RoutedEventArgs e)
     {
         try
         {
-            if (System.Windows.Application.Current.Properties["Host"] is Microsoft.Extensions.Hosting.IHost host)
+            var exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+            if (!string.IsNullOrEmpty(exePath))
             {
-                BtnRestartService.IsEnabled = false;
-                BtnRestartService.Content = "Restarting...";
-
-                await host.StopAsync();
-                await host.StartAsync();
-
-                BtnRestartService.Visibility = Visibility.Collapsed;
-                MessageBox.Show("Background service restarted successfully! Ignore changes are now active.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                System.Diagnostics.Process.Start(exePath, "--settings");
             }
-            else
-            {
-                MessageBox.Show("Unable to restart service: Host reference not found.", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
+            System.Windows.Application.Current?.Shutdown();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to restart background service: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        finally
-        {
-            BtnRestartService.IsEnabled = true;
-            BtnRestartService.Content = "Restart Service";
         }
     }
 }

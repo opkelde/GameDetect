@@ -55,7 +55,6 @@ public class Program
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown
         };
-        app.Properties["Host"] = host;
 
         // Determine initial theme on start (Auto by default)
         var initialTheme = "Auto";
@@ -109,8 +108,21 @@ public class Program
             {
                 trayIcon = new GameDetect.UI.TrayIconManager();
                 
+                var showSettings = false;
+                if (e.Args != null)
+                {
+                    foreach (var arg in e.Args)
+                    {
+                        if (string.Equals(arg, "--settings", StringComparison.OrdinalIgnoreCase))
+                        {
+                            showSettings = true;
+                            break;
+                        }
+                    }
+                }
+
                 var mqttHost = builder.Configuration.GetSection("Mqtt")["Host"];
-                if (string.IsNullOrEmpty(mqttHost) || mqttHost == "homeassistant.local")
+                if (showSettings || string.IsNullOrEmpty(mqttHost) || mqttHost == "homeassistant.local")
                 {
                     new GameDetect.UI.SettingsWindow().Show();
                 }
