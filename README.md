@@ -48,37 +48,62 @@ If you don't have MQTT set up yet, follow these quick steps:
 
 ## 🚀 Quick Start Guide
 
-Setting up GameDetect on your gaming PC is simple and doesn't require editing any text files:
+Setting up GameDetect on your gaming PC is simple:
 
-1. **Download & Run**: Download the latest release of `GameDetect.exe` and run it. You will see a gaming controller icon appear in your Windows System Tray (bottom right corner).
-2. **Open Settings**: Double-click the tray icon to open the beautiful, modern **GameDetect Settings** window.
+1. **Download & Install**: Download the latest release of `GameDetect_Setup.exe` from the releases page and run the installer.
+2. **Open Settings**: Once installed, run GameDetect. Double-click the tray controller icon in your Windows System Tray (bottom right corner) to open the modern Settings panel.
 3. **Configure MQTT**: 
-   - **Host**: Enter the IP address of your Home Assistant instance (e.g., `192.168.1.100` or `homeassistant.local`). You don't need to add `http://` or ports!
-   - **Username / Password**: Enter the credentials for your MQTT broker (often the same as your Home Assistant login if using Mosquitto).
-4. **Device Name**: Customize the name of your PC (e.g., `Gaming PC`). This is how it will show up in Home Assistant.
-5. **Autostart**: Check the "Start with Windows" box if you want GameDetect to run automatically in the background when you turn on your PC.
-6. **Save**: Click **Save Settings**. GameDetect will instantly connect to Home Assistant without needing a restart!
+   - **Host**: Enter the IP address of your Home Assistant instance (e.g., `192.168.1.100` or `homeassistant.local`). Do not include `http://` or ports.
+   - **Username / Password**: Enter the credentials for your MQTT broker.
+4. **Device Name**: Customize the name of your PC (e.g., `Gaming PC`). This determines how it appears in Home Assistant.
+5. **Autostart**: Check the "Start with Windows" box if you want GameDetect to run automatically in the background on boot.
+6. **Save**: Click **Save Settings**. GameDetect will instantly connect to Home Assistant!
 
 Your Game Mode entities will automatically appear in Home Assistant under the MQTT integration as a new device!
 
 ---
 
-## 🔧 Custom Games
+## 🔧 UI & Advanced Configuration
 
-If you play games that are not installed via a standard launcher (e.g., standalone executables, emulators), you can add them manually:
-1. Open the GameDetect Settings window.
-2. Navigate to the **Custom Games** section.
-3. Add the exact executable name (e.g., `minecraft.exe`) and the Display Name you want sent to Home Assistant.
-4. Click **Save Games**.
+GameDetect provides advanced configuration tabs in the Settings panel:
+
+### 1. Custom Games
+If you play standalone games or emulators that aren't managed by standard launchers:
+1. Navigate to the **Custom Games** section.
+2. Add the exact executable name (e.g., `minecraft.exe`), a Display Name, and optionally a window title match condition.
+3. Click **Save Games**.
+
+### 2. Game Mappings
+If a launcher game is tracked using the wrong executable (e.g., tracking a launcher process instead of the main game client):
+1. Navigate to the **Game Mappings** section.
+2. Enter the game name, launcher type, App ID (if applicable), and a comma-separated list of executable files (e.g., `DeltaForceClient-Win64-Shipping.exe, DeltaForceLauncher.exe`).
+3. Click **Save Mappings**.
+
+### 3. Scanned Library & Ignoring
+- **Scanned Library**: Displays all automatically detected games found on your system.
+- **Ignore / Track**: You can exclude any detected game from tracking by clicking **Ignore**.
+- **Ignored List (Split Layout)**:
+  - **Blacklisted Executables** (left grid): Filter out generic helper executables (e.g., crash handlers or overlays like `crashpad_handler.exe`) globally so they are never mapped to any game.
+  - **Ignored Games** (right grid): Completely exclude specific games by name from triggering detection (e.g., ignoring *Wallpaper Engine*).
+- **Restart Service**: Clicking the "Restart Service" button in the bottom right of the Scanned Library tab will restart the background service in the tray and reload all settings.
+
+### 4. Maintenance
+- **Configuration Backup**: Backup and restore your configurations to/from ZIP files.
+- **Theme Selection**: Customize the interface with Light Mode, Dark Mode, or Auto (System Default).
 
 ---
 
 ## ⚙️ Advanced: Configuration Data
 
-GameDetect stores all of your settings and custom games safely in your Windows AppData folder:
+GameDetect stores all settings and databases in your Windows AppData folder:
 `%AppData%\GameDetect\`
 
-You can backup and restore your configurations easily using the built-in Backup buttons in the Settings window.
+This folder contains:
+- `config.json` (General service & MQTT settings)
+- `custom_games.json` (Configured custom games)
+- `known_game_mappings.json` (Custom game executable overrides)
+- `ignored_executables.json` (Blacklisted processes)
+- `ignored_games.json` (Ignored game names)
 
 ---
 
